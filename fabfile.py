@@ -14,6 +14,7 @@ env.aegir_deploy = {
     'template_target': time.strftime('aegir-deploy-%Y-%m-%d-%H%M%S.make'),
     'platform_base': '',
     'site_name': '',
+    'web_server': 'localhost',
 }
 
 def setup(location):
@@ -44,7 +45,8 @@ def setup(location):
         # Now copy the branch specific information over.
         if 'branches' in yaml_config.keys():
             if current_branch and current_branch in yaml_config['branches'].keys():
-                for k in yaml_config['branches'][current_branch]:
+                for k in env.aegir_deploy:
+                    if k in yaml_config['branches'][current_branch]:
                     env.aegir_deploy[k] = yaml_config['branches'][current_branch][k]
 
 
@@ -101,6 +103,7 @@ def build_platform():
     master_server_tmp = env.aegir_deploy['master_server_tmp']
     platform_base = env.aegir_deploy['platform_base']
     release_tag = env.aegir_deploy['release_tag']
+    web_server = env.aegir_deploy['web_server']
 
     # Compute the platform name
     platform_name = machine_name(platform_base + ' ' + release_tag)
@@ -110,7 +113,7 @@ def build_platform():
 
     print "===> Building the platform"
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
-        run("drush --verbose --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s'" % (platform_name, platform_name, makefile))
+        run("drush --verbose --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s' --web_server='server_%s'" % (platform_name, platform_name, makefile, web_server))
         run("drush --verbose @hostmaster hosting-import '@platform_%s'" % platform_name)
         run("drush --verbose @hostmaster hosting-task '@platform_%s' verify" % platform_name)
 
