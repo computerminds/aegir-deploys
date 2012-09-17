@@ -22,7 +22,7 @@ def create_make_template(version, location, template_name='aegir-make.make'):
     template_source = location + '/' + template_name
     template_target = template_name.replace('.template', '.make')
     if not os.path.exists(template_source):
-        print('===> Could not find make template')
+        print('===> Could not find make template, looked for: %s' % template_source)
         raise SystemExit(1)
     else:
         # The template exists, so we'll use it
