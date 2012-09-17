@@ -26,4 +26,4 @@ def create_make_template(version, location, template_name='aegir-make.make'):
         raise SystemExit(1)
     else:
         # The template exists, so we'll use it
-        local('sed "s/%TAG%/%s/" %s > %s' % (version, template_source, template_target))
+        local('sed "s/%%TAG%%/%s/" %s > %s' % (version, template_source, template_target))
