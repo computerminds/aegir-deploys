@@ -113,7 +113,7 @@ def build_platform():
 
     print "===> Building the platform"
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
-        run("drush --verbose --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s' --web_server='server_%s'" % (platform_name, platform_name, makefile, web_server))
+        run("drush --verbose --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s' --web_server='@server_%s'" % (platform_name, platform_name, makefile, web_server))
         run("drush --verbose @hostmaster hosting-import '@platform_%s'" % platform_name)
         run("drush --verbose @hostmaster hosting-task '@platform_%s' verify" % platform_name)
 
