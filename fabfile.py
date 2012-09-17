@@ -28,11 +28,24 @@ def setup(location):
         stream = file(config_file, 'r')
         yaml_config = yaml.load(stream)
         stream.close()
+
+        # Find the current branch.
+        # We want to allow for the failure of the git command.
+        with settings(warn_only=True):
+            current_branch = local("cd '%s' && git rev-parse --symbolic-full-name --abbrev-ref HEAD" % location, capture=True)
+        if not current_branch.succeeded:
+            current_branch = None
+
         # Copy the configuration over.
         for k in env.aegir_deploy:
-            if k in yaml_config:
+            if (k in yaml_config) and (not k is 'branches'):
                 env.aegir_deploy[k] = yaml_config[k]
 
+        # Now copy the branch specific information over.
+        if 'branches' in yaml_config.keys():
+            if current_branch and current_branch in yaml_config['branches'].keys():
+                for k in yaml_config['branches'][current_branch]:
+                    env.aegir_deploy[k] = yaml_config['branches'][current_branch][k]
 
 
 def scan_for_tags():
