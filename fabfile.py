@@ -47,7 +47,7 @@ def setup(location):
             if current_branch and current_branch in yaml_config['branches'].keys():
                 for k in env.aegir_deploy:
                     if k in yaml_config['branches'][current_branch]:
-                    env.aegir_deploy[k] = yaml_config['branches'][current_branch][k]
+                        env.aegir_deploy[k] = yaml_config['branches'][current_branch][k]
 
 
 def scan_for_tags():
