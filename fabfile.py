@@ -2,13 +2,12 @@ from fabric.api import local, settings, env, put, run
 import yaml
 import os
 import time
-import string
 
 # Setup the default settings in the fabric env.
 env.aegir_deploy = {
     'makefile_template': 'aegir-make.template',
-    'location' : '',
-    'master_server' : '',
+    'location': '',
+    'master_server': '',
     'aegir_user': 'aegir',
     'master_server_tmp': '/tmp',
     'template_target': time.strftime('aegir-deploy-%Y-%m-%d-%H%M%S.make'),
@@ -16,6 +15,7 @@ env.aegir_deploy = {
     'site_name': '',
     'web_server': 'localhost',
 }
+
 
 def setup(location):
     env.aegir_deploy['location'] = location
@@ -85,16 +85,17 @@ def create_make_template():
         # The template exists, so we'll use it
         local('sed "s/%%TAG%%/%s/" "%s" > "%s"' % (release_tag, template_source, template_target))
 
+
 def put_template():
     aegir_user = env.aegir_deploy['aegir_user']
     master_server = env.aegir_deploy['master_server']
     template = env.aegir_deploy['template_target']
     master_server_tmp = env.aegir_deploy['master_server_tmp']
 
-
     print "===> Copying the template to the remote server"
     with settings(host_string=aegir_user + '@' + master_server):
         put(template, master_server_tmp)
+
 
 def build_platform():
     aegir_user = env.aegir_deploy['aegir_user']
@@ -113,9 +114,11 @@ def build_platform():
 
     print "===> Building the platform"
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
+        run("drush --verbose make '%s' '/var/aegir/platforms/%s'" % (makefile, platform_name))
         run("drush --verbose --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s' --web_server='@server_%s'" % (platform_name, platform_name, makefile, web_server))
         run("drush --verbose @hostmaster hosting-import '@platform_%s'" % platform_name)
         run("drush --verbose @hostmaster hosting-task '@platform_%s' verify" % platform_name)
+
 
 def migrate_site():
     aegir_user = env.aegir_deploy['aegir_user']
@@ -126,6 +129,7 @@ def migrate_site():
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
         run("drush --verbose @%s provision-migrate '@platform_%s'" % (site_name, platform_name))
 
+
 def import_site():
     aegir_user = env.aegir_deploy['aegir_user']
     master_server = env.aegir_deploy['master_server']
@@ -134,6 +138,7 @@ def import_site():
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
         run("drush --verbose @hostmaster hosting-import '@%s'" % (site_name))
 
+
 def machine_name(value):
     import re
     # Convert invalid characters to underscores.
@@ -141,4 +146,3 @@ def machine_name(value):
     # Convert multiple underscores to single ones.
     value = re.sub('_+', '_', value)
     return value
-
