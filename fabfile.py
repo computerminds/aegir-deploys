@@ -64,25 +64,47 @@ def setup(location):
             raise SystemExit(0)
 
 
+def validate_and_run():
+    # We're going to perform some basic sanity checks first.
+    location = env.aegir_deploy['location']
+    if env.aegir_deploy['master_server'] is None:
+        logger('No master server specified')
+        raise SystemExit(1)
+
+    if env.aegir_deploy['site_name'] is None:
+        logger('No site_name specified')
+        raise SystemExit(1)
+
+
+    # Those have passed, lets move on to the actually running of this thing.
+    tag = scan_for_tags()
+    if tag is None:
+        raise SystemExit(0)
+    else:
+        logger('Found a tag: [%s]' % tag)
+        env.aegir_deploy['release_tag'] = tag
+    
+    create_make_template()
+    put_template()
+    build_platform()
+    migrate_site()
+    import_site()
+
+
 def scan_for_tags():
     location = env.aegir_deploy['location']
     if os.path.exists(location):
-        print('===> Searching for valid tags')
+        logger('Searching for valid tags')
 
         # We want to allow for the failure of the git command.
         with settings(warn_only=True):
             res = local("cd '%s' && git describe --tags --exact-match" % location, capture=True)
 
         if res.succeeded:
-            print('===> Found a tag: [%s]' % res)
-            env.aegir_deploy['release_tag'] = res
-            create_make_template()
-            put_template()
-            build_platform()
-            migrate_site()
-            import_site()
+            return res
         else:
-            print('===> Could not find a tag')
+            logger('Could not find a tag')
+            return None
 
 
 def create_make_template():
@@ -93,7 +115,7 @@ def create_make_template():
 
     template_source = location + '/' + template_name
     if not os.path.exists(template_source):
-        print('===> Could not find make template, looked for: %s' % template_source)
+        logger('Could not find make template, looked for: %s' % template_source)
         raise SystemExit(1)
     else:
         # The template exists, so we'll use it
@@ -106,7 +128,7 @@ def put_template():
     template = env.aegir_deploy['template_target']
     master_server_tmp = env.aegir_deploy['master_server_tmp']
 
-    print "===> Copying the template to the remote server"
+    logger("Copying the template to the remote server")
     with settings(host_string=aegir_user + '@' + master_server):
         put(template, master_server_tmp)
 
@@ -126,11 +148,25 @@ def build_platform():
     # And the makefile
     makefile = master_server_tmp + '/' + template
 
-    print "===> Building the platform"
+
+    logger("Building the platform")
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
+
+        # Lets ensure that the platform that we're about to make doesn't
+        # already exist.
+        with settings(warn_only=True):
+            res = run("test -d '/var/aegir/platforms/%s'" % (platform_name))
+            if (res.succeeded):
+                # The directory already exists, don't wipe it out, abort.
+                logger('Platform path already exists, aborting')
+                raise SystemExit(0)
+
+
         run("drush make '%s' '/var/aegir/platforms/%s'" % (makefile, platform_name))
+        logger('Adding the platform to Aegir')
         run("drush --root='/var/aegir/platforms/%s' provision-save '@platform_%s' --context_type='platform' --makefile='%s' --web_server='@server_%s'" % (platform_name, platform_name, makefile, web_server))
         run("drush @hostmaster hosting-import '@platform_%s'" % platform_name)
+        logger('Verifying the platform')
         run("drush @hostmaster hosting-task '@platform_%s' verify" % platform_name)
 
 
@@ -140,6 +176,8 @@ def migrate_site():
     platform_name = env.aegir_deploy['platform_name']
     site_name = env.aegir_deploy['site_name']
 
+    logger('Migrating the site to the new platform')
+
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
         run("drush --verbose @%s provision-migrate '@platform_%s'" % (site_name, platform_name))
 
@@ -148,6 +186,8 @@ def import_site():
     aegir_user = env.aegir_deploy['aegir_user']
     master_server = env.aegir_deploy['master_server']
     site_name = env.aegir_deploy['site_name']
+
+    logger('Updating the site in the Aegir frontend')
 
     with settings(host_string=aegir_user + '@' + master_server, shell='/bin/bash -c'):
         run("drush --verbose @hostmaster hosting-import '@%s'" % (site_name))
