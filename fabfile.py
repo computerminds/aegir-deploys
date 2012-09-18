@@ -4,17 +4,23 @@ import os
 import time
 
 # Setup the default settings in the fabric env.
+# If you want to allow an option to be specified in the config file, then it
+# must be declared here.
 env.aegir_deploy = {
     'makefile_template': 'aegir-make.template',
-    'location': '',
-    'master_server': '',
+    'location': None,
+    'master_server': None,
     'aegir_user': 'aegir',
     'master_server_tmp': '/tmp',
     'template_target': time.strftime('aegir-deploy-%Y-%m-%d-%H%M%S.make'),
     'platform_base': '',
-    'site_name': '',
+    'site_name': None,
     'web_server': 'localhost',
 }
+
+
+def logger(string):
+    print("===> %s" % string)
 
 
 def setup(location):
@@ -22,10 +28,10 @@ def setup(location):
     # Find the configuration file and read out the settings we need into our env.
     config_file = location + '/.aegir-deploy.yml'
     if not os.path.exists(config_file):
-        print('===> Could not find configuration file, aborting')
+        logger('Could not find configuration file, aborting')
         raise SystemExit(1)
     else:
-        print('===> Loading configuration from %s' % config_file)
+        logger('Loading configuration from %s' % config_file)
         stream = file(config_file, 'r')
         yaml_config = yaml.load(stream)
         stream.close()
@@ -35,7 +41,8 @@ def setup(location):
         with settings(warn_only=True):
             current_branch = local("cd '%s' && git rev-parse --symbolic-full-name --abbrev-ref HEAD" % location, capture=True)
         if not current_branch.succeeded:
-            current_branch = None
+            logger('Could not determine current branch')
+            raise SystemExit(1)
 
         # Copy the configuration over.
         for k in env.aegir_deploy:
@@ -43,11 +50,18 @@ def setup(location):
                 env.aegir_deploy[k] = yaml_config[k]
 
         # Now copy the branch specific information over.
+        # Ensure that we detect at least one branch
+        seen_current_branch = False
         if 'branches' in yaml_config.keys():
             if current_branch and current_branch in yaml_config['branches'].keys():
+                seen_current_branch = True
                 for k in env.aegir_deploy:
                     if k in yaml_config['branches'][current_branch]:
                         env.aegir_deploy[k] = yaml_config['branches'][current_branch][k]
+
+        if not seen_current_branch:
+            logger('Build not configured for this branch')
+            raise SystemExit(0)
 
 
 def scan_for_tags():
