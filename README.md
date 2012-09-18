@@ -65,7 +65,7 @@ Usage
 
 Point this script at your git checkout of your codebase, where .aegir-deploy,yml should be stored:
 
-    fab setup:/path/to/checkout scan_for_tags
+    fab setup:/path/to/checkout validate_and_run
 
 This will setup the fabfile with the configuration, and then look for a tag on the currently checked out HEAD, if it finds one then it'll:
 
